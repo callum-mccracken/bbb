@@ -1,0 +1,19 @@
+# notebook-related files
+**.ipynb_checkpoints
+
+# compiled python
+**.pyo
+**.pyc
+
+# big pdfs
+**.pdf
+
+# vscode config files
+**.vscode**
+
+# data files
+**.root
+**.awkd
+
+# a personal to-do list
+progress.txt
