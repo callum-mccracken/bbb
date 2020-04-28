@@ -5,7 +5,7 @@ import uproot_methods as urm
 import awkward
 import numpy as np
 from sklearn.model_selection import ShuffleSplit
-
+from tqdm import tqdm
 
 def open_file(filepath, sort_by=None):
     """
@@ -98,6 +98,7 @@ def open_file(filepath, sort_by=None):
  
     return s_table
 
+
 def splitTVT(input, trainfrac = 0.8, testfrac = 0.2):
     """
         splits data into training, validation, and test subsets
@@ -119,3 +120,103 @@ def splitTVT(input, trainfrac = 0.8, testfrac = 0.2):
         val_index = []
 
     return train_index, val_index, test_index
+
+
+def evaluate_model(truths, tags, selections):
+    """
+        Given a list of events and a list of selections, how often did we...
+        1. make the correct selection of jet?
+        2. pick an incorrect jet?
+        3. pick a jet when we shouldn't have?
+        4. give up?
+
+        Each input should be an array of n events
+        truths = np.array([[1, 1, 1, 1, 0]])# was each jet truly a b jet?
+        tags = np.array([[1, 1, 1, 0, 0]])  # was each jet tagged as a b jet?
+        selections = np.array([[0, 0, 0, 1, 0]])  # which jet is the 4th?
+    """
+
+    # counters for when conditions 1 2 3 4 are satisfied
+    count_1 = count_2 = count_3 = count_4 = 0
+
+    # counters for situations when 1 2 3 4 apply
+    count_1_total = count_2_total = count_3_total = count_4_total = 0
+    
+    n_events = len(truths)
+    for i in tqdm(range(n_events)):
+        selection = selections[i]
+        truth = truths[i]
+        tag = tags[i]
+        
+        selection_index = np.where(selection == 1)[0]
+        n_selections = len(selection_index)
+        #print(n_selections, "seclections at indices", selection_index)
+
+        untagged = np.logical_xor(truth, tag).astype(int)
+        n_untagged = np.count_nonzero(untagged)
+        #print(n_untagged, "true jets that were untagged")
+
+        if n_untagged == 0:  # should not have made any selection
+            count_3_total += 1
+            if n_selections != 0:  # made a selection, should not have
+                count_3 += 1
+            else:  # good call, no selection
+                pass
+
+        elif n_untagged == 1:  # if we should have made 1 selection
+            count_1_total += 1
+            count_2_total += 1
+
+            if n_selections == 0:  # no selection
+                # failing to pick a jet counts as picking the wrong jet I guess?
+                count_2 += 1
+
+            elif n_selections == 1:  # 1 selection
+                # was it the right one?
+                right_selection = bool(truth[selection_index] == 1)
+                if right_selection:
+                    count_1 += 1  # correct selection
+                else:
+                    count_2 += 1  # wrong selection when there was a right answer
+
+            else:
+                raise ValueError("Why did you select more than 1 jet?")
+
+        else:  # there were 2 or more untagged jets
+            count_4_total += 1  # should have given up
+            count_4 += 1  # did
+    print('\r')  # remove progress bar
+
+    percent_1 = count_1/count_1_total * 100
+    percent_2 = count_2/count_2_total * 100
+    percent_3 = count_3/count_3_total * 100
+    percent_4 = count_4/count_4_total * 100
+
+    fixed = count_1 / n_events * 100
+    broken = count_2 / n_events * 100
+    unchanged = (count_3 + count_4) / n_events * 100
+
+    output_str = f"""
+    There were {count_1_total} situations where we should have picked a jet,
+    and {count_1} of those jets were picked correctly ({percent_1:.2f}%).
+
+    We picked an incorrect jet {count_2} times ({percent_2:.2f}%).
+
+    There were {count_3_total} times we should not have picked a jet,
+    and {count_3} of those were handled correctly ({percent_3:.2f}%).
+
+    There were {count_4} situations where we weren't sure what to do.
+
+    In terms of overall percentages of events "fixed"
+    (i.e. where we tagged a 4th jet), we have the following:
+
+    Events correctly fixed = {fixed:.2f}%
+
+    Events incorrectly fixed = {broken:.2f}%
+
+    Events where nothing was done (no tag/gave up) = {unchanged:.2f}%
+    """
+    print(output_str)
+    #print(count_1, count_2, count_3, count_4)
+    #print(count_1_total, count_2_total, count_3_total, count_4_total)
+
