@@ -124,97 +124,117 @@ def splitTVT(input, trainfrac = 0.8, testfrac = 0.2):
 
 def evaluate_model(truths, tags, selections):
     """
-        Given a list of events and a list of selections, how often did we...
-        1. make the correct selection of jet?
-        2. pick an incorrect jet?
-        3. pick a jet when we shouldn't have?
-        4. give up?
+    Given a list of events and a list of selections, how often did we...
 
-        Each input should be an array of n events
-        truths = np.array([[1, 1, 1, 1, 0]])# was each jet truly a b jet?
-        tags = np.array([[1, 1, 1, 0, 0]])  # was each jet tagged as a b jet?
-        selections = np.array([[0, 0, 0, 1, 0]])  # which jet is the 4th?
+    - detect the right jet
+    - pick a wrong jet
+    - not pick a jet when we should have
+    - correctly do nothing to a 3-jet event
+    - incorrectly add a 4th jet to a 3-jet event
+
+    truths:
+        numpy array, 1 for real b-jet, 0 for not
+    tags:
+        numpy array, 1 for tagged, 0 for not
+    selections:
+        numpy array, 1 for selected, 0 for not
+
+    Example for one event::
+
+        truths = [1, 1, 1, 1, 0]
+        tags = [1, 1, 1, 0, 0]
+        selections = [0, 0, 0, 1, 0]
     """
 
-    # counters for when conditions 1 2 3 4 are satisfied
-    count_1 = count_2 = count_3 = count_4 = 0
-
-    # counters for situations when 1 2 3 4 apply
-    count_1_total = count_2_total = count_3_total = count_4_total = 0
+    # counters for when conditions are satisfied
     
+    # if 4 jets exist, use these for picking right, picking wrong, or ignoring
+    right_pick = wrong_pick_4 = wrong_ignore = 0
+    # if 3 jets exist, use these
+    wrong_pick_3 = right_ignore = 0
+    # for other events
+    give_up = 0
+
+    # total number of events
     n_events = len(truths)
     for i in tqdm(range(n_events)):
         selection = selections[i]
         truth = truths[i]
         tag = tags[i]
-        
+
         selection_index = np.where(selection == 1)[0]
         n_selections = len(selection_index)
-        #print(n_selections, "seclections at indices", selection_index)
 
         untagged = np.logical_xor(truth, tag).astype(int)
         n_untagged = np.count_nonzero(untagged)
-        #print(n_untagged, "true jets that were untagged")
 
         if n_untagged == 0:  # should not have made any selection
-            count_3_total += 1
             if n_selections != 0:  # made a selection, should not have
-                count_3 += 1
+                wrong_pick_3 += 1
             else:  # good call, no selection
-                pass
-
+                right_ignore += 1
         elif n_untagged == 1:  # if we should have made 1 selection
-            count_1_total += 1
-            count_2_total += 1
-
-            if n_selections == 0:  # no selection
-                # failing to pick a jet counts as picking the wrong jet I guess?
-                count_2 += 1
-
-            elif n_selections == 1:  # 1 selection
-                # was it the right one?
+            if n_selections == 0:  # no selection, bad
+                wrong_ignore += 1
+            elif n_selections == 1:  # 1 selection, good
+                # was it the right jet though?
                 right_selection = bool(truth[selection_index] == 1)
                 if right_selection:
-                    count_1 += 1  # correct selection
+                    right_pick += 1
                 else:
-                    count_2 += 1  # wrong selection when there was a right answer
-
+                    wrong_pick_4 += 1
             else:
                 raise ValueError("Why did you select more than 1 jet?")
-
         else:  # there were 2 or more untagged jets
-            count_4_total += 1  # should have given up
-            count_4 += 1  # did
+            give_up += 1
     print('\r')  # remove progress bar
 
-    percent_1 = count_1/count_1_total * 100
-    percent_2 = count_2/count_2_total * 100
-    percent_3 = count_3/count_3_total * 100
-    percent_4 = count_4/count_4_total * 100
+    # ignore "give up" events in the stats at the end
+    n = n_events - give_up
 
-    fixed = count_1 / n_events * 100
-    broken = count_2 / n_events * 100
-    unchanged = (count_3 + count_4) / n_events * 100
+    # pc = percent
+    right_pick_pc = right_pick / n * 100
+    wrong_pick_3_pc = wrong_pick_3 / n * 100
+    wrong_pick_4_pc = wrong_pick_4 / n * 100
+    right_ignore_pc = right_ignore / n * 100
+    wrong_ignore_pc = wrong_ignore / n * 100
+    give_up_pc = give_up / n_events * 100
+
+    # ensure percentages add up
+
+    five_percent_sum = right_pick_pc + wrong_pick_3_pc + wrong_pick_4_pc + right_ignore_pc + wrong_ignore_pc
+    if abs(five_percent_sum - 100) > 1e-6:
+        print(five_percent_sum)
+        raise ValueError("percentages should add up to 100!")
 
     output_str = f"""
-    There were {count_1_total} situations where we should have picked a jet,
-    and {count_1} of those jets were picked correctly ({percent_1:.2f}%).
+    Total number of events: {n_events}
+    Minus events ignored: {give_up}, ({give_up_pc:.2f}%)
 
-    We picked an incorrect jet {count_2} times ({percent_2:.2f}%).
+    N for percentages: {n}
 
-    There were {count_3_total} times we should not have picked a jet,
-    and {count_3} of those were handled correctly ({percent_3:.2f}%).
+    4th b-jet really exists:
+        Correct 4th jet picked:         {right_pick_pc:.2f}%
+        Incorrect 4th jet picked:       {wrong_pick_4_pc:.2f}%
+        Event incorrectly ignored:      {wrong_ignore_pc:.2f}%
 
-    There were {count_4} situations where we weren't sure what to do.
+    No 4th b-jet really exists:
+        Correctly ignored event:        {right_ignore_pc:.2f}%
+        Incorrectly picked a 4th jet:   {wrong_pick_3_pc:.2f}%
 
-    In terms of overall percentages of events "fixed"
-    (i.e. where we tagged a 4th jet), we have the following:
-
-    Events correctly fixed = {fixed:.2f}%
-
-    Events incorrectly fixed = {broken:.2f}%
-
-    Events where nothing was done (no tag/gave up) = {unchanged:.2f}%
+    Or formatted in table form:
+                    ____________________
+                   |Truth-Matching      |
+                   |____________________|
+                   |4th exists  |No 4th |
+     ______________|____________|_______|
+    |4th |4th found|corr. {right_pick_pc:05.1f}%| {wrong_pick_3_pc:05.1f}%|
+    |Jet |         |inco. {wrong_pick_4_pc:05.1f}%|       |
+    |Reco|_________|____________|_______|
+    |    |no 4th   |      {wrong_ignore_pc:05.1f}%| {right_ignore_pc:05.1f}%|
+    |____|_________|____________|_______|
+    
+    (sum = {five_percent_sum:.2f})
     """
     print(output_str)
     #print(count_1, count_2, count_3, count_4)
