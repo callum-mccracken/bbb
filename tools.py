@@ -207,20 +207,30 @@ def evaluate_model(truths, tags, selections):
         print(five_percent_sum)
         raise ValueError("percentages should add up to 100!")
 
+    # now normalize columns
+    left_col_factor = (right_pick_pc + wrong_pick_4_pc + wrong_ignore_pc) / 100
+    right_col_factor = (wrong_pick_3_pc + right_ignore_pc) / 100
+
+    right_pick_pc /= left_col_factor
+    wrong_pick_4_pc /= left_col_factor
+    wrong_ignore_pc /= left_col_factor
+
+    wrong_pick_3_pc /= right_col_factor
+    right_ignore_pc /= right_col_factor
+
+
     output_str = f"""
     Total number of events: {n_events}
     Minus events ignored: {give_up}, ({give_up_pc:.2f}%)
 
-    N for percentages: {n}
-
     4th b-jet really exists:
-        Correct 4th jet picked:         {right_pick_pc:.2f}%
-        Incorrect 4th jet picked:       {wrong_pick_4_pc:.2f}%
-        Event incorrectly ignored:      {wrong_ignore_pc:.2f}%
+        Correct 4th jet picked:         {right_pick_pc:.2f}%, {right_pick}
+        Incorrect 4th jet picked:       {wrong_pick_4_pc:.2f}%, {wrong_pick_4}
+        Event incorrectly ignored:      {wrong_ignore_pc:.2f}%, {wrong_ignore}
 
     No 4th b-jet really exists:
-        Correctly ignored event:        {right_ignore_pc:.2f}%
-        Incorrectly picked a 4th jet:   {wrong_pick_3_pc:.2f}%
+        Correctly ignored event:        {right_ignore_pc:.2f}%, {right_ignore}
+        Incorrectly picked a 4th jet:   {wrong_pick_3_pc:.2f}%, {wrong_pick_3}
 
     Or formatted in table form:
                     ____________________
@@ -233,8 +243,8 @@ def evaluate_model(truths, tags, selections):
     |Reco|_________|____________|_______|
     |    |no 4th   |      {wrong_ignore_pc:05.1f}%| {right_ignore_pc:05.1f}%|
     |____|_________|____________|_______|
-    
-    (sum = {five_percent_sum:.2f})
+
+    (columns add to 100% each)
     """
     print(output_str)
     #print(count_1, count_2, count_3, count_4)
