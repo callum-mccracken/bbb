@@ -54,7 +54,7 @@ class FourJetNetwork:
             plt.legend(['train', 'val'], loc='upper left')
             plt.show()
         
-    def evaluate(self, events=None):
+    def evaluate(self, events=None, savename=None):
         """
         Given some (scaled) input data,
         get model's predictions of what the result should be,
@@ -79,7 +79,4 @@ class FourJetNetwork:
             selections[i][3] = s
 
         # and actually evaluate
-        tools.evaluate_model(truth, tag, selections)
-
-        
-    
+        tools.evaluate_model(truth, tag, selections, savename=savename)
