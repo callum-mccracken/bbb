@@ -6,6 +6,11 @@ import awkward
 import numpy as np
 from sklearn.model_selection import ShuffleSplit
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from keras.preprocessing.sequence import pad_sequences
+from sklearn.preprocessing import StandardScaler
+
 
 def open_file(filepath, sort_by=None):
     """
@@ -99,7 +104,7 @@ def open_file(filepath, sort_by=None):
     return s_table
 
 
-def splitTVT(input, trainfrac = 0.8, testfrac = 0.2):
+def splitTVT(input_item, trainfrac = 0.8, testfrac = 0.2):
     """
         splits data into training, validation, and test subsets
 
@@ -109,7 +114,7 @@ def splitTVT(input, trainfrac = 0.8, testfrac = 0.2):
     
     train_split = ShuffleSplit(n_splits=1, test_size=testfrac + valfrac, random_state=0)
     # advance the generator once with the next function
-    train_index, testval_index = next(train_split.split(input))  
+    train_index, testval_index = next(train_split.split(input_item))  
 
     if valfrac > 0:
         testval_split = ShuffleSplit(
@@ -122,7 +127,7 @@ def splitTVT(input, trainfrac = 0.8, testfrac = 0.2):
     return train_index, val_index, test_index
 
 
-def evaluate_model(truths, tags, selections):
+def evaluate_model(truths, tags, selections, output="pretty", savename=None):
     """
     Given a list of events and a list of selections, how often did we...
 
@@ -138,6 +143,10 @@ def evaluate_model(truths, tags, selections):
         numpy array, 1 for tagged, 0 for not
     selections:
         numpy array, 1 for selected, 0 for not
+    output:
+        string or None, what kind of output to produce, "pretty" or "ascii"
+    savename:
+        string, if output="pretty", save the table as table_{savename}.png
 
     Example for one event::
 
@@ -145,7 +154,6 @@ def evaluate_model(truths, tags, selections):
         tags = [1, 1, 1, 0, 0]
         selections = [0, 0, 0, 1, 0]
     """
-
     # counters for when conditions are satisfied
     
     # if 4 jets exist, use these for picking right, picking wrong, or ignoring
@@ -202,7 +210,8 @@ def evaluate_model(truths, tags, selections):
 
     # ensure percentages add up
 
-    five_percent_sum = right_pick_pc + wrong_pick_3_pc + wrong_pick_4_pc + right_ignore_pc + wrong_ignore_pc
+    five_percent_sum = sum([right_pick_pc, wrong_pick_3_pc, wrong_pick_4_pc,
+                            right_ignore_pc, wrong_ignore_pc])
     if abs(five_percent_sum - 100) > 1e-6:
         print(five_percent_sum)
         raise ValueError("percentages should add up to 100!")
@@ -246,7 +255,201 @@ def evaluate_model(truths, tags, selections):
 
     (columns add to 100% each)
     """
-    print(output_str)
-    #print(count_1, count_2, count_3, count_4)
-    #print(count_1_total, count_2_total, count_3_total, count_4_total)
+    if output is None:
+        pass
+    elif output == "ascii":
+        print(output_str)
+    elif output == "pretty":
+        table_plot(right_pick, wrong_pick_4, wrong_ignore,
+                   wrong_pick_3, right_ignore, savename=savename)
+    return right_pick_pc, wrong_pick_4_pc, wrong_ignore_pc, wrong_pick_3_pc, right_ignore_pc
 
+
+def table_plot(true4_found4_corr, true4_found4_incorr, true4_found3,
+               true3_found4, true3_found3, savename=None):
+    """
+    Makes a pretty plot of a model evaluation table,
+    as opposed to the ascii version created by evaluate_model.
+
+    true4_found4_corr:
+        int, # of events where 4th jet was found correctly
+    true4_found4_incorr:
+        int, # of events where 4th jet was found incorrectly
+    true4_found3:
+        int, # of events where a 4th jets should have been picked but wasn't
+    true3_found4:
+        int, # of events where a 4th jets shouldn't have been picked but was
+    true3_found3:
+        int, # of events where no 4th jet was picked, and that was correct
+    save:
+        bool, whether or not to save the plot as table.png in current dir
+    """
+    
+    # Prepare plot on which to place table
+    _, ax = plt.subplots()
+    plt.xlim(-0.1,5.1)
+    plt.ylim(-0.1,3.7)
+    ax.axis('off')
+
+    n_events = sum([true4_found4_corr, true4_found4_incorr, true4_found3,
+                   true3_found4, true3_found3])
+
+    n_col_1 = sum([true4_found4_corr, true4_found4_incorr, true4_found3])
+    n_col_2 = sum([true3_found4, true3_found3])
+
+    n_row_1 = sum([true4_found4_corr, true4_found4_incorr, true3_found4])
+    n_row_2 = sum([true4_found3, true3_found3])
+
+    true4_found4_corr_pc = true4_found4_corr / n_col_1 * 100
+    true4_found4_incorr_pc = true4_found4_incorr / n_col_1 * 100
+    true4_found3_pc = true4_found3 / n_col_1 * 100
+
+    true3_found4_pc = true3_found4 / n_col_2 * 100
+    true3_found3_pc = true3_found3 / n_col_2 * 100
+
+    # add a whole bunch of squares and text
+    ax.text(0.5,1, "4th Jet\nReco", fontsize=18, verticalalignment='center', horizontalalignment='center', fontweight='heavy')
+    ax.add_patch(patches.Rectangle((0,0),1,2,linewidth=1,edgecolor='#262626',facecolor='w'))
+
+    ax.text(1.5,1+1/3, "4th jet\nfound", fontsize=13, verticalalignment='center', horizontalalignment='center', fontweight='heavy')
+    ax.text(1.5,1, f"({n_row_1})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.add_patch(patches.Rectangle((1,0),1,1-1/3,linewidth=1,edgecolor='#262626',facecolor='w'))
+
+    ax.text(3-0.05,1/3, f"{true4_found3_pc:.1f}%", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(3-0.05,1/9, f"({true4_found3})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.add_patch(patches.Rectangle((2,0),2-0.1,1-1/3,linewidth=1,edgecolor='#262626',facecolor='#ffff66'))
+
+    ax.text(4.45,1/3, f"{true3_found3_pc:.1f}%", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(4.45,1/9, f"({true3_found3})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.add_patch(patches.Rectangle((4-0.1,0),1+0.1,1-1/3,linewidth=1,edgecolor='#262626',facecolor='#00ff66'))
+
+    ax.text(1.5,0.4, "No 4th jet\nfound", fontsize=13, verticalalignment='center', horizontalalignment='center', fontweight='heavy')
+    ax.text(1.5,1/9, f"({n_row_2})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.add_patch(patches.Rectangle((1,1-1/3),1,1+1/3,linewidth=1,edgecolor='#262626',facecolor='w'))
+
+    ax.text(2.5,1+2/3, "Correct\n4th jet", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.add_patch(patches.Rectangle((2,1-1/3),1,0.5*(1+1/3),linewidth=1,edgecolor='#262626',facecolor='w'))
+
+    ax.text(2.5,1, "Incorrect\n4th jet", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.add_patch(patches.Rectangle((2,1-1/3+0.5*(1+1/3)),1,0.5*(1+1/3),linewidth=1,edgecolor='#262626',facecolor='w'))
+
+    ax.text(3.45,1+2/3, f"{true4_found4_corr_pc:.1f}%", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(3.45,1+2/3-2/9, f"({true4_found4_corr})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.add_patch(patches.Rectangle((3,1-1/3),1-0.1,0.5*(1+1/3),linewidth=1,edgecolor='k',facecolor='#ff6666'))
+
+    ax.text(3.45,1, f"{true4_found4_incorr_pc:.1f}%", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(3.45,1-2/9, f"({true4_found4_incorr})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.add_patch(patches.Rectangle((3,1-1/3+0.5*(1+1/3)),1-0.1,0.5*(1+1/3),linewidth=1,edgecolor='#262626',facecolor='#00ff66'))
+
+    ax.text(4.45,1+1/3, f"{true3_found4_pc:.1f}%", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(4.45,1+1/3-2/9, f"({true3_found4})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.add_patch(patches.Rectangle((4-0.1,1-1/3),1+0.1,1+1/3,linewidth=1,edgecolor='#262626',facecolor='#ff6666'))
+
+    ax.text(3,2.375, "4th tag exists", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='heavy')
+    ax.text(3,2.375-2/9, f"({n_col_1})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.add_patch(patches.Rectangle((2,2),2-0.1,0.75,linewidth=1,edgecolor='#262626',facecolor='w'))
+
+    ax.text(4.45,2.375, "No 4th tag", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='heavy')
+    ax.text(4.45,2.375-2/9, f"({n_col_2})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.add_patch(patches.Rectangle((4-0.1,2),1+0.1,0.75,linewidth=1,edgecolor='#262626',facecolor='w'))
+
+    ax.text(3.5,3.1, "Truth-Matching", fontsize=18, verticalalignment='center', horizontalalignment='center', fontweight='heavy')
+
+    ax.text(1,2.375, f"(# events={n_events})", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.add_patch(patches.Rectangle((2,2+0.75),3,0.75,linewidth=1,edgecolor='#262626',facecolor='w'))
+
+    # format and show/save
+    plt.tight_layout()
+    if savename:
+        plt.savefig(f"table_{savename}.png", dpi=300)
+    plt.show()
+
+
+def boost_and_rotate(events):
+    # we assume events is rectangular (i.e. all events have same # of jets
+    njets = len(events.resolved_lv.pt[0])
+    # get vectors
+    vectors = events.resolved_lv
+
+    # get sum vectors
+    x_sum = np.repeat(np.sum(vectors.x, axis=1).reshape(-1, 1), njets, axis=1)
+    y_sum = np.repeat(np.sum(vectors.y, axis=1).reshape(-1, 1), njets, axis=1)
+    z_sum = np.repeat(np.sum(vectors.z, axis=1).reshape(-1, 1), njets, axis=1)
+    t_sum = np.repeat(np.sum(vectors.t, axis=1).reshape(-1, 1), njets, axis=1)
+    v_sum = urm.TLorentzVectorArray(x_sum, y_sum, z_sum, t_sum)
+
+    # b for boosted
+    vectors_b = vectors.boost(-v_sum.boostp3)
+    v_sum_b = v_sum.boost(-v_sum.boostp3)
+    # for filler data where eta = 0, we'll have NaN for eta, replace that
+    eta = np.nan_to_num(vectors_b.eta, nan=0.0)
+    vectors_b = urm.TLorentzVectorArray.from_ptetaphie(vectors_b.pt, eta, vectors_b.phi, vectors_b.E)
+
+    # now rotate the system based on the first 3 jets
+    # get sum of the first 3, similarly to before
+    x_sum3 = np.repeat(np.sum(vectors_b.x[:,:3], axis=1).reshape(-1, 1), njets, axis=1)
+    y_sum3 = np.repeat(np.sum(vectors_b.y[:,:3], axis=1).reshape(-1, 1), njets, axis=1)
+    z_sum3 = np.repeat(np.sum(vectors_b.z[:,:3], axis=1).reshape(-1, 1), njets, axis=1)
+    t_sum3 = np.repeat(np.sum(vectors_b.t[:,:3], axis=1).reshape(-1, 1), njets, axis=1)
+    v_sum3 = urm.TLorentzVectorArray(x_sum3, y_sum3, z_sum3, t_sum3)
+
+    # rotate about z so that phi=0 for v_sum3
+    vectors_r = vectors_b.rotatez(-v_sum3.phi)
+    v_sum3 = v_sum3.rotatez(-v_sum3.phi)
+
+    # and again replace filler etas with 0
+    print("Don't worry if you see a warning about dividing by zero, fixing that!")
+    eta = np.nan_to_num(vectors_r.eta, nan=0.0)
+    vectors_final = urm.TLorentzVectorArray.from_ptetaphie(vectors_r.pt, eta, vectors_r.phi, vectors_r.E)
+
+    events.resolved_lv = vectors_final
+    return events    
+        
+    
+def pad(events, length=None):
+    events.truth = pad_sequences(events["truth"],padding='post')
+    events.tag = pad_sequences(events["tag"], padding='post')
+    padded_pt = pad_sequences(events["resolved_lv"].pt, padding='post', 
+                              dtype='float32', value = 0)
+    padded_eta = pad_sequences(events["resolved_lv"].eta, padding='post', 
+                               dtype='float32', value = 0)
+    padded_phi = pad_sequences(events["resolved_lv"].phi, padding='post', 
+                               dtype='float32', value = 0)
+    padded_E = pad_sequences(events["resolved_lv"].E, padding='post', 
+                             dtype='float32', value = 0)
+    
+    if length is not None:
+        events.truth = events.truth[:,:length]
+        events.tag = events.tag[:,:length]
+        padded_pt = padded_pt[:,:length]
+        padded_eta = padded_eta[:,:length]
+        padded_phi = padded_phi[:,:length]
+        padded_E = padded_E[:,:length]
+    
+    events.resolved_lv = urm.TLorentzVectorArray.from_ptetaphie(
+        padded_pt, padded_eta, padded_phi, padded_E)
+    
+    return events
+
+
+def scale_nn_input(events, chop=None):
+    # scale data to be keras-friendly
+    scaler_pt = StandardScaler()
+    scaler_eta = StandardScaler()
+    scaler_phi = StandardScaler()
+    s_pt = scaler_pt.fit_transform(events.resolved_lv.pt)
+    s_eta = scaler_eta.fit_transform(events.resolved_lv.eta)
+    s_phi = scaler_phi.fit_transform(events.resolved_lv.phi)
+
+    # if chop, "chop off" the first "chop" things from the jets
+    if chop:
+        s_pt = s_pt[:,chop:]
+        s_eta = s_eta[:,chop:]
+        s_phi = s_phi[:,chop:]
+    
+    # stack pt, eta, phi for input into model
+    s_in = np.column_stack((s_pt, s_eta, s_phi))
+    return s_in
+
+if __name__ == "__main__":
+    table_plot(20,20,20,20,20,20)

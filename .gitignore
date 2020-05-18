@@ -5,8 +5,11 @@
 **.pyo
 **.pyc
 
-# big pdfs
+# pdfs and images
 **.pdf
+**.png
+**.jpg
+**.svg
 
 # vscode config files
 **.vscode**
