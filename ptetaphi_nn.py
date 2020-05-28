@@ -17,7 +17,7 @@ from sklearn.metrics import roc_curve
 import tools
 
 class PtEtaPhiNN:
-    def __init__(self, events):
+    def __init__(self, events, print_summary=False):
         """
         A class for neural networks that take raw pt, eta, phi values
         Note we assuume events is rectangular (all same # of jets)
@@ -54,22 +54,26 @@ class PtEtaPhiNN:
         self.model = Sequential()
         self.model.add(Dense(3*(njets-3), input_dim=3*(njets-3),
                         kernel_initializer='normal', activation='relu'))
-        self.model.add(Dense(3*(njets-3), activation='relu'))
-        self.model.add(Dense(15, activation='relu'))
+        self.model.add(Dense(100*(njets-3), activation='relu'))
+        self.model.add(Dense(500, activation='relu'))
+        self.model.add(Dense(300, activation='relu'))
+        self.model.add(Dense(100, activation='relu'))
+        self.model.add(Dense(50, activation='relu'))
         self.model.add(Dense(8,  # - 3 correctly tagged + 1 for no jet
                         kernel_initializer='normal', activation='softmax'))
         optimizer = Adam(lr=5e-5)
         self.model.compile(loss='categorical_crossentropy',
                       optimizer=optimizer, metrics=['acc'])
-        self.model.summary()
+        if print_summary:
+            self.model.summary()
 
-    def learn(self, plot=True):
+    def learn(self, plot=True, epochs=200):
         """Train the neural network, make a plot of accuracy if desired"""
         self.history = self.model.fit(
             self.s_in[self.train], self.ideal_model_output[self.train],
             validation_data=(
                 self.s_in[self.val],self.ideal_model_output[self.val]),
-            epochs = 200, batch_size = 200, verbose = 1)
+            epochs = epochs, batch_size = 200, verbose = 1)
         if plot:
             plt.plot(self.history.history['acc'])
             plt.plot(self.history.history['val_acc'])
