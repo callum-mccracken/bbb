@@ -154,6 +154,8 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
         tags = [1, 1, 1, 0, 0]
         selections = [0, 0, 0, 1, 0]
     """
+    print(selections)
+    print(truths)
     # counters for when conditions are satisfied
     
     # if 4 jets exist, use these for picking right, picking wrong, or ignoring
@@ -220,12 +222,14 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
     left_col_factor = (right_pick_pc + wrong_pick_4_pc + wrong_ignore_pc) / 100
     right_col_factor = (wrong_pick_3_pc + right_ignore_pc) / 100
 
-    right_pick_pc /= left_col_factor
-    wrong_pick_4_pc /= left_col_factor
-    wrong_ignore_pc /= left_col_factor
+    if left_col_factor != 0:
+        right_pick_pc /= left_col_factor
+        wrong_pick_4_pc /= left_col_factor
+        wrong_ignore_pc /= left_col_factor
 
-    wrong_pick_3_pc /= right_col_factor
-    right_ignore_pc /= right_col_factor
+    if right_col_factor != 0:
+        wrong_pick_3_pc /= right_col_factor
+        right_ignore_pc /= right_col_factor
 
 
     output_str = f"""
@@ -299,13 +303,21 @@ def table_plot(true4_found4_corr, true4_found4_incorr, true4_found3,
 
     n_row_1 = sum([true4_found4_corr, true4_found4_incorr, true3_found4])
     n_row_2 = sum([true4_found3, true3_found3])
-
-    true4_found4_corr_pc = true4_found4_corr / n_col_1 * 100
-    true4_found4_incorr_pc = true4_found4_incorr / n_col_1 * 100
-    true4_found3_pc = true4_found3 / n_col_1 * 100
-
-    true3_found4_pc = true3_found4 / n_col_2 * 100
-    true3_found3_pc = true3_found3 / n_col_2 * 100
+    
+    if n_col_1 != 0:
+        true4_found4_corr_pc = true4_found4_corr / n_col_1 * 100
+        true4_found4_incorr_pc = true4_found4_incorr / n_col_1 * 100
+        true4_found3_pc = true4_found3 / n_col_1 * 100
+    else:
+        true4_found4_corr_pc = 0
+        true4_found4_incorr_pc = 0
+        true4_found3_pc = 0
+    if n_col_2 != 0:
+        true3_found4_pc = true3_found4 / n_col_2 * 100
+        true3_found3_pc = true3_found3 / n_col_2 * 100
+    else:
+        true3_found4_pc = 0
+        true3_found3_pc = 0
 
     # add a whole bunch of squares and text
     ax.text(0.5,1, "4th Jet\nReco", fontsize=18, verticalalignment='center', horizontalalignment='center', fontweight='heavy')
@@ -433,14 +445,21 @@ def pad(events, length=None):
 
 
 def scale_nn_input(events, chop=None):
+    print("scaling")
+    
     # scale data to be keras-friendly
     scaler_pt = StandardScaler()
     scaler_eta = StandardScaler()
     scaler_phi = StandardScaler()
+
     s_pt = scaler_pt.fit_transform(events.resolved_lv.pt)
     s_eta = scaler_eta.fit_transform(events.resolved_lv.eta)
     s_phi = scaler_phi.fit_transform(events.resolved_lv.phi)
-
+    
+    print("DATA FOR .csv file:")
+    print("pt_mean,pt_mean,pt_var,eta_mean,eta_var,phi_mean,phi_var")
+    for i in range(len(events.resolved_lv.pt[0])):        
+        print(scaler_pt.mean_[i],scaler_pt.var_[i],scaler_eta.mean_[i],scaler_eta.var_[i],scaler_phi.mean_[i],scaler_phi.var_[i], sep=',')
     # if chop, "chop off" the first "chop" things from the jets
     if chop:
         s_pt = s_pt[:,chop:]

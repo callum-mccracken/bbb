@@ -13,17 +13,19 @@ from keras.layers import Dense
 from keras.layers import Dropout
 from keras.utils.np_utils import to_categorical   
 from sklearn.metrics import roc_curve
-
+from keras.models import load_model
+from keras.models import model_from_json
+import json
 import tools
 
 class PtEtaPhiNN:
-    def __init__(self, events, print_summary=False):
+    def __init__(self, events, print_summary=False, model=None, load=None, njets=10):
         """
         A class for neural networks that take raw pt, eta, phi values
         Note we assuume events is rectangular (all same # of jets)
         """
         self.events = events
-        njets = len(events.truth[0])
+        self.njets = njets
         # 1 = should've been tagged, wasn't. 0 = correctly tagged (/ not tagged)
         untagged = np.logical_xor(events.truth, events.tag).astype(int)
 
@@ -51,19 +53,37 @@ class PtEtaPhiNN:
         self.test = test
         
         # create network
-        self.model = Sequential()
-        self.model.add(Dense(3*(njets-3), input_dim=3*(njets-3),
-                        kernel_initializer='normal', activation='relu'))
-        self.model.add(Dense(100*(njets-3), activation='relu'))
-        self.model.add(Dense(500, activation='relu'))
-        self.model.add(Dense(300, activation='relu'))
-        self.model.add(Dense(100, activation='relu'))
-        self.model.add(Dense(50, activation='relu'))
-        self.model.add(Dense(8,  # - 3 correctly tagged + 1 for no jet
-                        kernel_initializer='normal', activation='softmax'))
-        optimizer = Adam(lr=5e-5)
-        self.model.compile(loss='categorical_crossentropy',
-                      optimizer=optimizer, metrics=['acc'])
+        if load:
+            jsonfile, h5file = load
+            print("loading model. \nUsing architecture:",jsonfile,
+                  "and weights:", h5file)
+            with open(jsonfile,'rb') as f:
+                model_json = f.read()
+            self.model = model_from_json(model_json)
+            self.model.load_weights(h5file)
+        elif model is None:
+            print("creating default model")
+            self.model = Sequential([
+                Dense(3*(njets-3), input_dim=3*(njets-3),
+                      kernel_initializer='normal', activation='relu'),
+                Dense(700, activation='relu'),
+                Dropout(0.1),
+                Dense(500, activation='relu'),
+                Dropout(0.1),
+                Dense(300, activation='relu'),
+                Dropout(0.1),
+                Dense(100, activation='relu'),
+                Dropout(0.1),
+                Dense(50, activation='relu'),
+                Dense(njets-3+1,  # - 3 correctly tagged + 1 for no jet
+                      kernel_initializer='normal', activation='softmax')
+            ])
+            optimizer = Adam(lr=5e-5)
+            self.model.compile(loss='categorical_crossentropy',
+                               optimizer=optimizer, metrics=['acc'])
+        else:
+            print("using input model")
+            self.model = model
         if print_summary:
             self.model.summary()
 

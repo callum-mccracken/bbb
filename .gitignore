@@ -23,3 +23,7 @@ progress.txt
 
 # python file for testing purposes
 test.py
+
+# model files
+**.json
+**.h5
