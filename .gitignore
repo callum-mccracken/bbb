@@ -34,3 +34,5 @@ test.py
 
 # don't save changes to the filepath.txt file
 filepath.txt
+# or other txt files
+**.txt
