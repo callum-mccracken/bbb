@@ -150,12 +150,12 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
 
     Example for one event::
 
-        truths = [1, 1, 1, 1, 0]
-        tags = [1, 1, 1, 0, 0]
-        selections = [0, 0, 0, 1, 0]
+        truths = [[1, 1, 1, 1, 0]]
+        tags = [[1, 1, 1, 0, 0]]
+        selections = [[0, 0, 0, 1, 0]]
     """
-    print(selections)
-    print(truths)
+    #print(selections)
+    #print(truths)
     # counters for when conditions are satisfied
     
     # if 4 jets exist, use these for picking right, picking wrong, or ignoring
@@ -174,8 +174,11 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
 
         selection_index = np.where(selection == 1)[0]
         n_selections = len(selection_index)
+        if n_selections > 1:
+            raise ValueError("why are you selecting more than 1?")
 
         untagged = np.logical_xor(truth, tag).astype(int)
+
         n_untagged = np.count_nonzero(untagged)
 
         if n_untagged == 0:  # should not have made any selection
@@ -197,10 +200,12 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
                 raise ValueError("Why did you select more than 1 jet?")
         else:  # there were 2 or more untagged jets
             give_up += 1
-    print('\r')  # remove progress bar
+    #print('\r')  # remove progress bar
 
     # ignore "give up" events in the stats at the end
     n = n_events - give_up
+    if n == 0:
+        raise ValueError("something is causing the model evaluator to give up all the time!")
 
     # pc = percent
     right_pick_pc = right_pick / n * 100
@@ -266,7 +271,8 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
     elif output == "pretty":
         table_plot(right_pick, wrong_pick_4, wrong_ignore,
                    wrong_pick_3, right_ignore, savename=savename)
-    return right_pick_pc, wrong_pick_4_pc, wrong_ignore_pc, wrong_pick_3_pc, right_ignore_pc
+    return selections
+    #return right_pick_pc, wrong_pick_4_pc, wrong_ignore_pc, wrong_pick_3_pc, right_ignore_pc
 
 
 def table_plot(true4_found4_corr, true4_found4_incorr, true4_found3,
@@ -445,7 +451,7 @@ def pad(events, length=None):
 
 
 def scale_nn_input(events, chop=None):
-    print("scaling")
+    #print("scaling")
     
     # scale data to be keras-friendly
     scaler_pt = StandardScaler()
@@ -457,7 +463,7 @@ def scale_nn_input(events, chop=None):
     s_phi = scaler_phi.fit_transform(events.resolved_lv.phi)
     
     print("DATA FOR .csv file:")
-    print("pt_mean,pt_mean,pt_var,eta_mean,eta_var,phi_mean,phi_var")
+    print("pt_mean,pt_var,eta_mean,eta_var,phi_mean,phi_var")
     for i in range(len(events.resolved_lv.pt[0])):        
         print(scaler_pt.mean_[i],scaler_pt.var_[i],scaler_eta.mean_[i],scaler_eta.var_[i],scaler_phi.mean_[i],scaler_phi.var_[i], sep=',')
     # if chop, "chop off" the first "chop" things from the jets
@@ -468,6 +474,9 @@ def scale_nn_input(events, chop=None):
     
     # stack pt, eta, phi for input into model
     s_in = np.column_stack((s_pt, s_eta, s_phi))
+    if len(events.resolved_lv.pt) == 1:
+        unscaled_in = np.column_stack((events.resolved_lv.pt, events.resolved_lv.eta, events.resolved_lv.phi))
+        print('unscaled', unscaled_in[0])
     return s_in
 
 if __name__ == "__main__":
