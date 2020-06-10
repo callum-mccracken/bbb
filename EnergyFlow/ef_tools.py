@@ -82,7 +82,7 @@ def open_file(filepath):
     s_table = awkward.Table()
     for label in ['resolved_lv', 'truth', 'tag']:
         s_table[label] = table[label][indices]
-
+    
     max_njets = max(table.njets)
 
     print("padding arrays")
@@ -112,7 +112,7 @@ def open_file(filepath):
     untagged = np.logical_xor(truth_arr, tag_arr).astype(int)
     n_untagged = np.count_nonzero(untagged, axis=1)
 
-    # ensure we only have one untagged jet
+    # ensure we only have at max one untagged jet
     events[n_untagged > 1] = 0
     print(np.count_nonzero(events), 'events after ensuring there is at most 1 untagged jet')
 
@@ -137,10 +137,10 @@ def open_file(filepath):
     missed_jet += max_njets  # don't pick a jet
     missed_jet[missed_jet_events] = missed_jet_index  # unless you should
 
-    missed_jet_arr = np.zeros((len(pt_arr), max_njets-3+1), dtype=int)
+    missed_jet_arr = np.zeros((len(pt_arr), max_njets+1), dtype=int)
 
     for i, m in enumerate(missed_jet):
-        missed_jet_arr[i][m-3] = 1
+        missed_jet_arr[i][m] = 1
 
     y = missed_jet_arr
     return X, y
