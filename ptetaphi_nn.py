@@ -103,24 +103,30 @@ class PtEtaPhiNN:
             plt.legend(['train', 'val'], loc='upper left')
             plt.show()
         
-    def evaluate(self, events=None, savename=None):
+    def evaluate(self, events=None, output="pretty", savename=None):
         """
         Given some (scaled) input data,
         get model's predictions of what the result should be,
         and evaluate those predictions.
         """
         if events is None:
-            print("using data given when this model was created")
+            #print("using data given when this model was created")
             truth = self.events.truth[self.test]
             tag = self.events.tag[self.test]
             data = self.s_in[self.test]
         else:
-            print("using different data than when this model was created")
+            #print("using different data than when this model was created")
             truth = events.truth
             tag = events.tag
             data = tools.scale_nn_input(events, chop=3)
+            print('scaled', self.s_in[3,:])
 
         nn_score = self.model.predict(data)
+        #print(type(nn_score), nn_score.shape)
+        if len(nn_score) == 1:
+            print("model scores")
+            for i, s in enumerate(nn_score[0,:]):
+                print(i, f"{s:.4f}")
         select=np.argmax(nn_score,axis=-1)
         # put this in a better format
         selections = np.zeros((len(data), len(truth[0])+1), dtype=int)
@@ -130,4 +136,5 @@ class PtEtaPhiNN:
         selections = selections[:,:-1]
         
         # and actually evaluate
-        tools.evaluate_model(truth, tag, selections, savename=savename)
+        tools.evaluate_model(truth, tag, selections, output=output, savename=savename)
+        return selections
