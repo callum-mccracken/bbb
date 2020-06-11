@@ -6,7 +6,7 @@ import awkward
 import numpy as np
 from tqdm import tqdm
 
-def open_file(filepath):
+def open_file(filepath, njets=None):
     """
         returns `X`, `y`, numpy arrays, in a format required by energyflow
 
@@ -93,6 +93,13 @@ def open_file(filepath):
     truth_arr = np.array([np.concatenate((tru, [0]*(max_njets-len(tru)))) for tru in s_table.truth])
     print('done padding')
 
+    if njets:
+        pt_arr = pt_arr[:,:njets]
+        eta_arr = eta_arr[:,:njets]
+        phi_arr = phi_arr[:,:njets]
+        tag_arr = tag_arr[:,:njets]
+        truth_arr = truth_arr[:,:njets]
+
     # ensure the first 3 jets are tagged correctly
     events = np.ones((len(pt_arr)), dtype=bool)
     print(np.count_nonzero(events), 'events total')
@@ -122,8 +129,11 @@ def open_file(filepath):
     phi_arr = phi_arr[events]
     tag_arr = tag_arr[events]
     truth_arr = truth_arr[events]
-
-    X = np.zeros((len(pt_arr), max_njets, 4), dtype=float)
+    
+    if njets:
+        X = np.zeros((len(pt_arr), njets, 4), dtype=float)
+    else:
+        X = np.zeros((len(pt_arr), max_njets, 4), dtype=float)
     X[:,:,0] = pt_arr
     X[:,:,1] = eta_arr
     X[:,:,2] = phi_arr
@@ -134,10 +144,13 @@ def open_file(filepath):
 
     # njets = no 4th jet, the rest means set that index's jet = 4th jet
     missed_jet = np.zeros(len(pt_arr), dtype=int)
-    missed_jet += max_njets  # don't pick a jet
+    missed_jet += njets if njets else max_njets # don't pick a jet
     missed_jet[missed_jet_events] = missed_jet_index  # unless you should
 
-    missed_jet_arr = np.zeros((len(pt_arr), max_njets+1), dtype=int)
+    if njets:
+        missed_jet_arr = np.zeros((len(pt_arr), njets+1), dtype=int)
+    else:
+        missed_jet_arr = np.zeros((len(pt_arr), max_njets+1), dtype=int)
 
     for i, m in enumerate(missed_jet):
         missed_jet_arr[i][m] = 1

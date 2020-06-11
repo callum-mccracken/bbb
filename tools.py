@@ -215,6 +215,7 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
     wrong_ignore_pc = wrong_ignore / n * 100
     give_up_pc = give_up / n_events * 100
 
+    print("ignoring", give_up_pc, "percent of", n_events, "events")
     # ensure percentages add up
 
     five_percent_sum = sum([right_pick_pc, wrong_pick_3_pc, wrong_pick_4_pc,
