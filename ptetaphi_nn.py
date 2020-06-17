@@ -119,7 +119,7 @@ class PtEtaPhiNN:
             truth = events.truth
             tag = events.tag
             data = tools.scale_nn_input(events, chop=3, print_csv=print_csv)
-            print('scaled', self.s_in[3,:])
+            #print('scaled', self.s_in[3,:])
 
         nn_score = self.model.predict(data)
         #print(type(nn_score), nn_score.shape)
@@ -134,7 +134,7 @@ class PtEtaPhiNN:
             selections[i][s+3] = 1
         # chop off the last "no selection" jet
         selections = selections[:,:-1]
-        
+
         # and actually evaluate
         tools.evaluate_model(truth, tag, selections, output=output, savename=savename)
         return selections

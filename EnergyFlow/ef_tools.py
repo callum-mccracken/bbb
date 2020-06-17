@@ -14,14 +14,8 @@ def open_file(filepath, njets=None):
             string, path to the .root file you wish to open
 
         - `X` : a three-dimensional numpy array of the jets with shape 
-        `(num_data,max_num_particles,4)`.
-        - `y` : a numpy array of quark/gluon jet labels (quark=`1` and gluon=`0`).
-
-        The jets are padded with zero-particles in order to make a contiguous array.
-        The particles are given as `(pt,y,phi,pid)` values, where `pid` is the
-        particle's [PDG id](http://pdg.lbl.gov/2018/reviews/rpp2018-rev-monte
-        -carlo-numbering.pdf). Quark jets either include or exclude $c$ and $b$
-        quarks depending on the `with_bc` argument.
+        `(num_data,max_num_particles,5)`. 5: pt, eta, phi, E, tag
+        - `y` : binary array, 1 for real b-jets
     """
     # open the file
     sm_file = ur.open(filepath)
@@ -89,6 +83,7 @@ def open_file(filepath, njets=None):
     pt_arr = np.array([np.concatenate((pt, [0]*(max_njets-len(pt)))) for pt in s_table.resolved_lv.pt])
     eta_arr = np.array([np.concatenate((eta, [0]*(max_njets-len(eta)))) for eta in s_table.resolved_lv.eta])
     phi_arr = np.array([np.concatenate((phi, [0]*(max_njets-len(phi)))) for phi in s_table.resolved_lv.phi])
+    E_arr = np.array([np.concatenate((e, [0]*(max_njets-len(e)))) for e in s_table.resolved_lv.E])
     tag_arr = np.array([np.concatenate((tag, [0]*(max_njets-len(tag)))) for tag in s_table.tag])
     truth_arr = np.array([np.concatenate((tru, [0]*(max_njets-len(tru)))) for tru in s_table.truth])
     print('done padding')
@@ -97,6 +92,7 @@ def open_file(filepath, njets=None):
         pt_arr = pt_arr[:,:njets]
         eta_arr = eta_arr[:,:njets]
         phi_arr = phi_arr[:,:njets]
+        E_arr = E_arr[:,:njets]
         tag_arr = tag_arr[:,:njets]
         truth_arr = truth_arr[:,:njets]
 
@@ -127,17 +123,19 @@ def open_file(filepath, njets=None):
     pt_arr = pt_arr[events]
     eta_arr = eta_arr[events]
     phi_arr = phi_arr[events]
+    E_arr = E_arr[events]
     tag_arr = tag_arr[events]
     truth_arr = truth_arr[events]
     
     if njets:
-        X = np.zeros((len(pt_arr), njets, 4), dtype=float)
+        X = np.zeros((len(pt_arr), njets, 5), dtype=float)
     else:
-        X = np.zeros((len(pt_arr), max_njets, 4), dtype=float)
+        X = np.zeros((len(pt_arr), max_njets, 5), dtype=float)
     X[:,:,0] = pt_arr
     X[:,:,1] = eta_arr
     X[:,:,2] = phi_arr
-    X[:,:,3] = tag_arr  # should be all zeros at this point
+    X[:,:,3] = E_arr
+    X[:,:,4] = tag_arr  # should be all zeros at this point
 
     # where does the untagged jet occur?
     missed_jet_events, missed_jet_index = np.where(untagged[events]==1)
