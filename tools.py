@@ -158,7 +158,7 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
     for i in range(len(truths)):
         if all(truths[i][3:] == selections[i][3:]):
             n_correct += 1
-    print(f"accuracy around {n_correct/len(truths)*100:.2f} percent")
+    #print(f"accuracy around {n_correct/len(truths)*100:.2f} percent")
 
     
     #print(selections)
@@ -235,7 +235,7 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
     wrong_ignore_pc = wrong_ignore / n * 100
     give_up_pc = give_up / n_events * 100
 
-    print(f"accuracy actually {(right_pick+right_ignore)/len(truths)*100:.2f} percent")
+    print(f"overall accuracy: {(right_pick+right_ignore)/len(truths)*100:.2f} percent")
     
     print("ignoring", give_up_pc, "percent of", n_events, "events")
     # ensure percentages add up
@@ -473,7 +473,7 @@ def pad(events, length=None):
     return events
 
 
-def scale_nn_input(events, chop=None):
+def scale_nn_input(events, chop=None, print_csv=True):
     #print("scaling")
     
     # scale data to be keras-friendly
@@ -484,11 +484,12 @@ def scale_nn_input(events, chop=None):
     s_pt = scaler_pt.fit_transform(events.resolved_lv.pt)
     s_eta = scaler_eta.fit_transform(events.resolved_lv.eta)
     s_phi = scaler_phi.fit_transform(events.resolved_lv.phi)
-    
-    print("DATA FOR .csv file:")
-    print("pt_mean,pt_var,eta_mean,eta_var,phi_mean,phi_var")
-    for i in range(len(events.resolved_lv.pt[0])):        
-        print(scaler_pt.mean_[i],scaler_pt.var_[i],scaler_eta.mean_[i],scaler_eta.var_[i],scaler_phi.mean_[i],scaler_phi.var_[i], sep=',')
+
+    if print_csv:
+        print("DATA FOR .csv file:")
+        print("pt_mean,pt_var,eta_mean,eta_var,phi_mean,phi_var")
+        for i in range(len(events.resolved_lv.pt[0])):        
+            print(scaler_pt.mean_[i],scaler_pt.var_[i],scaler_eta.mean_[i],scaler_eta.var_[i],scaler_phi.mean_[i],scaler_phi.var_[i], sep=',')
     # if chop, "chop off" the first "chop" things from the jets
     if chop:
         s_pt = s_pt[:,chop:]

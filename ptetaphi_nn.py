@@ -19,7 +19,7 @@ import json
 import tools
 
 class PtEtaPhiNN:
-    def __init__(self, events, print_summary=False, model=None, load=None, njets=10):
+    def __init__(self, events, print_summary=False, model=None, load=None, njets=10, print_csv=True):
         """
         A class for neural networks that take raw pt, eta, phi values
         Note we assuume events is rectangular (all same # of jets)
@@ -44,7 +44,7 @@ class PtEtaPhiNN:
         
         self.ideal_model_output = missed_jet_arr
         
-        self.s_in = tools.scale_nn_input(events, chop=3)
+        self.s_in = tools.scale_nn_input(events, chop=3, print_csv=print_csv)
         
         # split into subsets
         train, val, test = tools.splitTVT(events, trainfrac=0.7, testfrac=0.2)
@@ -55,8 +55,8 @@ class PtEtaPhiNN:
         # create network
         if load:
             jsonfile, h5file = load
-            print("loading model. \nUsing architecture:",jsonfile,
-                  "and weights:", h5file)
+            print("Loading model... \nUsing architecture:",jsonfile,
+                  "\nand weights:", h5file)
             with open(jsonfile,'rb') as f:
                 model_json = f.read()
             self.model = model_from_json(model_json)
@@ -103,7 +103,7 @@ class PtEtaPhiNN:
             plt.legend(['train', 'val'], loc='upper left')
             plt.show()
         
-    def evaluate(self, events=None, output="pretty", savename=None):
+    def evaluate(self, events=None, output="pretty", savename=None, print_csv=True):
         """
         Given some (scaled) input data,
         get model's predictions of what the result should be,
@@ -118,7 +118,7 @@ class PtEtaPhiNN:
             #print("using different data than when this model was created")
             truth = events.truth
             tag = events.tag
-            data = tools.scale_nn_input(events, chop=3)
+            data = tools.scale_nn_input(events, chop=3, print_csv=print_csv)
             print('scaled', self.s_in[3,:])
 
         nn_score = self.model.predict(data)
