@@ -154,6 +154,13 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
         tags = [[1, 1, 1, 0, 0]]
         selections = [[0, 0, 0, 1, 0]]
     """
+    n_correct = 0
+    for i in range(len(truths)):
+        if all(truths[i][3:] == selections[i][3:]):
+            n_correct += 1
+    print(f"accuracy around {n_correct/len(truths)*100:.2f} percent")
+
+    
     #print(selections)
     #print(truths)
     # counters for when conditions are satisfied
@@ -174,13 +181,26 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
 
         selection_index = np.where(selection == 1)[0]
         n_selections = len(selection_index)
+            
         if n_selections > 1:
             raise ValueError("why are you selecting more than 1?")
 
         untagged = np.logical_xor(truth, tag).astype(int)
 
         n_untagged = np.count_nonzero(untagged)
-
+        
+        if np.count_nonzero(tag) > 3:
+            print(tag)
+        
+        if False: #i <10:
+            print('i', i)
+            print('truth    ', truth)
+            print('tag      ', tag)
+            print('selection', selection)
+            print('selection_index', selection_index)
+            print('n_selections', n_selections)
+            print('n_untagged', n_untagged)
+        
         if n_untagged == 0:  # should not have made any selection
             if n_selections != 0:  # made a selection, should not have
                 wrong_pick_3 += 1
@@ -215,6 +235,8 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
     wrong_ignore_pc = wrong_ignore / n * 100
     give_up_pc = give_up / n_events * 100
 
+    print(f"accuracy actually {(right_pick+right_ignore)/len(truths)*100:.2f} percent")
+    
     print("ignoring", give_up_pc, "percent of", n_events, "events")
     # ensure percentages add up
 
@@ -223,7 +245,7 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
     if abs(five_percent_sum - 100) > 1e-6:
         print(five_percent_sum)
         raise ValueError("percentages should add up to 100!")
-
+    
     # now normalize columns
     left_col_factor = (right_pick_pc + wrong_pick_4_pc + wrong_ignore_pc) / 100
     right_col_factor = (wrong_pick_3_pc + right_ignore_pc) / 100

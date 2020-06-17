@@ -112,7 +112,7 @@ def open_file(filepath, njets=None):
     print(np.count_nonzero(events), 'events after ensuring first 3 are correctly tagged')
 
     # and ensure no other jets are tagged
-    events[np.count_nonzero(tag_arr[:,4:], axis=1) > 0] = 0
+    events[np.count_nonzero(tag_arr[:,3:], axis=1) > 0] = 0
     print(np.count_nonzero(events), 'events after ensuring we only have 3 tags')
 
     # 1 = should've been tagged, wasn't. 0 = correctly tagged (/ not tagged)
