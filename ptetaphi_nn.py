@@ -102,7 +102,7 @@ class PtEtaPhiNN:
             plt.xlabel('epoch')
             plt.legend(['train', 'val'], loc='upper left')
             plt.show()
-        
+
     def evaluate(self, events=None, output="pretty", savename=None, print_csv=True):
         """
         Given some (scaled) input data,
@@ -122,6 +122,10 @@ class PtEtaPhiNN:
             #print('scaled', self.s_in[3,:])
 
         nn_score = self.model.predict(data)
+
+        if output == "nn_score":
+            return nn_score
+
         #print(type(nn_score), nn_score.shape)
         if len(nn_score) == 1:
             print("model scores")
