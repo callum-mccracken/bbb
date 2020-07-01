@@ -1,7 +1,7 @@
 # Load the Keras NN from the h5 and json config files
 # Open the file with uproot
-import os,sys
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+import os, sys
+#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import tensorflow as tf
 from tensorflow import keras
 from keras.models import model_from_json
@@ -39,6 +39,7 @@ for pts,etas,phis,tags in zip(events.array("resolvedJets_pt"),  \
                               events.array("resolvedJets_eta"), \
                               events.array("resolvedJets_phi"), \
                               events.array("resolvedJets_is_DL1r_FixedCutBEff_77")):
+    print(tags)
     # Only consider 3-tag events
     if sum(tags) != 3:
         continue

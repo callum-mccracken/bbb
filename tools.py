@@ -237,7 +237,7 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
 
     print(f"overall accuracy: {(right_pick+right_ignore)/len(truths)*100:.2f} percent")
     
-    print("ignoring", give_up_pc, "percent of", n_events, "events")
+    print(f"ignoring {give_up_pc:.2f} percent ({give_up} events) of {n_events} events")
     # ensure percentages add up
 
     five_percent_sum = sum([right_pick_pc, wrong_pick_3_pc, wrong_pick_4_pc,
@@ -473,7 +473,7 @@ def pad(events, length=None):
     return events
 
 
-def scale_nn_input(events, chop=None, print_csv=True):
+def scale_nn_input(events, chop=None, save_csv=None):
     #print("scaling")
     
     # scale data to be keras-friendly
@@ -485,11 +485,20 @@ def scale_nn_input(events, chop=None, print_csv=True):
     s_eta = scaler_eta.fit_transform(events.resolved_lv.eta)
     s_phi = scaler_phi.fit_transform(events.resolved_lv.phi)
 
-    if print_csv:
-        print("DATA FOR .csv file:")
-        print("pt_mean,pt_var,eta_mean,eta_var,phi_mean,phi_var")
-        for i in range(len(events.resolved_lv.pt[0])):        
-            print(scaler_pt.mean_[i],scaler_pt.var_[i],scaler_eta.mean_[i],scaler_eta.var_[i],scaler_phi.mean_[i],scaler_phi.var_[i], sep=',')
+    if save_csv:
+        fname = save_csv+".csv"
+        with open(fname, 'w') as f:
+            f.write("pt_mean,pt_var,eta_mean,eta_var,phi_mean,phi_var\n")
+            for i in range(len(events.resolved_lv.pt[0])):
+                string = ",".join(map(str, [
+                    scaler_pt.mean_[i],
+                    scaler_pt.var_[i],
+                    scaler_eta.mean_[i],
+                    scaler_eta.var_[i],
+                    scaler_phi.mean_[i],
+                    scaler_phi.var_[i],
+                    ])) + "\n" 
+                f.write(string)
     # if chop, "chop off" the first "chop" things from the jets
     if chop:
         s_pt = s_pt[:,chop:]
