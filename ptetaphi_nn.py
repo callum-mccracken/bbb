@@ -19,11 +19,12 @@ import json
 import tools
 
 class PtEtaPhiNN:
-    def __init__(self, events, print_summary=False, model=None, load=None, njets=10, save_csv=None):
+    def __init__(self, events, print_summary=False, model=None, load=None, njets=10, save_csv=None, chop=3, dropout=0.1):
         """
         A class for neural networks that take raw pt, eta, phi values
         Note we assuume events is rectangular (all same # of jets)
         """
+        self.chop = chop
         self.events = events
         self.njets = njets
         # 1 = should've been tagged, wasn't. 0 = correctly tagged (/ not tagged)
@@ -44,7 +45,7 @@ class PtEtaPhiNN:
         
         self.ideal_model_output = missed_jet_arr
         
-        self.s_in = tools.scale_nn_input(events, chop=3, save_csv=save_csv)
+        self.s_in = tools.scale_nn_input(events, chop=chop, save_csv=save_csv)
         
         # split into subsets
         train, val, test = tools.splitTVT(events, trainfrac=0.7, testfrac=0.2)
@@ -63,21 +64,35 @@ class PtEtaPhiNN:
             self.model.load_weights(h5file)
         elif model is None:
             print("creating default model")
-            self.model = Sequential([
-                Dense(3*(njets-3), input_dim=3*(njets-3),
-                      kernel_initializer='normal', activation='relu'),
-                Dense(700, activation='relu'),
-                Dropout(0.1),
-                Dense(500, activation='relu'),
-                Dropout(0.1),
-                Dense(300, activation='relu'),
-                Dropout(0.1),
-                Dense(100, activation='relu'),
-                Dropout(0.1),
-                Dense(50, activation='relu'),
-                Dense(njets-3+1,  # - 3 correctly tagged + 1 for no jet
-                      kernel_initializer='normal', activation='softmax')
-            ])
+            if dropout != 0:
+                self.model = Sequential([
+                    Dense(3*(njets-chop), input_dim=3*(njets-chop),
+                          kernel_initializer='normal', activation='relu'),
+                    Dense(700, activation='relu'),
+                    Dropout(dropout),
+                    Dense(500, activation='relu'),
+                    Dropout(dropout),
+                    Dense(300, activation='relu'),
+                    Dropout(dropout),
+                    Dense(100, activation='relu'),
+                    Dropout(dropout),
+                    Dense(50, activation='relu'),
+                    Dense(njets-3+1,  # - 3 correctly tagged + 1 for no jet
+                          kernel_initializer='normal', activation='softmax')
+                ])
+            else:
+                self.model = Sequential([
+                    Dense(3*(njets-chop), input_dim=3*(njets-chop),
+                          kernel_initializer='normal', activation='relu'),
+                    Dense(700, activation='relu'),
+                    Dense(500, activation='relu'),
+                    Dense(300, activation='relu'),
+                    Dense(100, activation='relu'),
+                    Dense(50, activation='relu'),
+                    Dense(njets-3+1,  # - 3 correctly tagged + 1 for no jet
+                          kernel_initializer='normal', activation='softmax')
+                ])
+
             optimizer = Adam(lr=5e-5)
             self.model.compile(loss='categorical_crossentropy',
                                optimizer=optimizer, metrics=['acc'])
@@ -118,7 +133,7 @@ class PtEtaPhiNN:
             #print("using different data than when this model was created")
             truth = events.truth
             tag = events.tag
-            data = tools.scale_nn_input(events, chop=3, save_csv=save_csv)
+            data = tools.scale_nn_input(events, chop=self.chop, save_csv=save_csv)
             #print('scaled', self.s_in[3,:])
 
         nn_score = self.model.predict(data)
