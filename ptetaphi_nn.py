@@ -19,10 +19,34 @@ import json
 import tools
 
 class PtEtaPhiNN:
-    def __init__(self, events, print_summary=False, model=None, load=None, njets=10, save_csv=None, chop=3, dropout=0.1):
+    def __init__(self, events, print_summary=False, model=None, load=None, njets=10, save_csv=None, chop=0, dropout=0.1):
         """
         A class for neural networks that take raw pt, eta, phi values
         Note we assuume events is rectangular (all same # of jets)
+
+        events:
+            uproot table, contains event data
+        print_summary:
+            bool, whether or not to print a summary of the model's structure,
+            default: False
+        model:
+            keras model, so you can create a PtEtaPhiNN with your own model,
+            default: None, usually models are created in this class.
+        load:
+            tuple of strings, (json_path, h5_path), path to files required to
+            create a neural network (json for architecture, h5 for weights)
+        njets:
+            int, number of jets to include in each event, default: 10
+        save_csv:
+            string, if supplied, save csv with scaling parameters to [save_csv].csv,
+            default: None
+        chop:
+            int, number of jets to cut off from the start, e.g. set to 3 if you
+            have 3 jets where you want to ignore the information from those three jets,
+            default: 0
+        dropout:
+            float < 1, fraction of dropout to apply between intermediate layers of the network,
+            default: 0.1
         """
         self.chop = chop
         self.events = events
@@ -37,14 +61,14 @@ class PtEtaPhiNN:
         missed_jet = np.zeros(len(untagged), dtype=int)
         missed_jet += njets  # don't pick a jet
         missed_jet[missed_jet_events] = missed_jet_index  # unless you should
-        
+
         missed_jet_arr = np.zeros((len(events), njets-3+1), dtype=int)
-        
+
         for i, m in enumerate(missed_jet):
             missed_jet_arr[i][m-3] = 1
-        
+
         self.ideal_model_output = missed_jet_arr
-        
+
         self.s_in = tools.scale_nn_input(events, chop=chop, save_csv=save_csv)
         
         # split into subsets
@@ -52,7 +76,7 @@ class PtEtaPhiNN:
         self.train = train
         self.val = val
         self.test = test
-        
+
         # create network
         if load:
             jsonfile, h5file = load
@@ -103,7 +127,15 @@ class PtEtaPhiNN:
             self.model.summary()
 
     def learn(self, plot=True, epochs=200):
-        """Train the neural network, make a plot of accuracy if desired"""
+        """
+        Train the neural network, make a plot of accuracy if desired
+        
+        plot:
+            boolean, whether to make a plot at the end of accuracy,
+            default: True
+        epochs:
+            int, number of epochs for which to train
+        """
         self.history = self.model.fit(
             self.s_in[self.train], self.ideal_model_output[self.train],
             validation_data=(
@@ -123,6 +155,23 @@ class PtEtaPhiNN:
         Given some (scaled) input data,
         get model's predictions of what the result should be,
         and evaluate those predictions.
+
+        events:
+            uproot table, contains event data, if you want to evaluate
+            on a whole different dataset than the one used to create
+            this network. Default: None (use data provided to make network)
+        output:
+            string, what kind of output to print after evaluating,
+            options: 
+                "pretty" for a nice graphical table (default)
+                "ascii" for an ascii-style table
+                None for no output
+        savename:
+            string, if output="pretty", save the table as table_{savename}.png,
+            default: None, no table output
+        save_csv:
+            string, save scaling parameters to [save_csv].csv,
+            default None --> no csv saved 
         """
         if events is None:
             #print("using data given when this model was created")

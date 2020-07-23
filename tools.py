@@ -151,7 +151,7 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
     selections:
         numpy array, 1 for selected, 0 for not
     output:
-        string or None, what kind of output to produce, "pretty" or "ascii"
+        string or None, what kind of output to produce, "pretty" or "ascii" or None
     savename:
         string, if output="pretty", save the table as table_{savename}.png
 
