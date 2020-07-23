@@ -106,8 +106,15 @@ def open_file(filepath, sort_by=None):
 
 def splitTVT(input_item, trainfrac = 0.8, testfrac = 0.2):
     """
-        splits data into training, validation, and test subsets
+    Splits data into training, validation, and test subsets.
+    Ensure trainfrac + testfrac = 1.
 
+    input_item:
+        array of data to be split
+    trainfrac:
+        float < 1, fraction of data to be used in the training dataset, default 0.8
+    testfrac:
+        float < 1, fraction of data to be used in the test dataset, default 0.2
     """
     # by default no validation, be sure to have validation later!
     valfrac = 1.0 - trainfrac - testfrac
@@ -407,6 +414,10 @@ def table_plot(true4_found4_corr, true4_found4_incorr, true4_found3,
 
 
 def boost_and_rotate(events):
+    """
+    Given a list of events, boosts into the center of mass frame,
+    then rotates jets phi=0 for the vector sum of the first 3 jets in each event.
+    """
     # we assume events is rectangular (i.e. all events have same # of jets
     njets = len(events.resolved_lv.pt[0])
     # get vectors
@@ -448,6 +459,18 @@ def boost_and_rotate(events):
         
     
 def pad(events, length=None):
+    """
+    Given some events of variable length,
+    pads each event so they all have a certain length.
+
+    By default, the maximum length of any event is used as the
+    padding length, but that can be edited with ``length``.
+
+    events:
+        uproot table of event data
+    length:
+        int, pad events to n_jets = length, default = max n_jets
+    """
     events.truth = pad_sequences(events["truth"],padding='post')
     events.tag = pad_sequences(events["tag"], padding='post')
     padded_pt = pad_sequences(events["resolved_lv"].pt, padding='post', 
@@ -474,8 +497,18 @@ def pad(events, length=None):
 
 
 def scale_nn_input(events, chop=None, save_csv=None):
-    #print("scaling")
-    
+    """
+    Given events, return scaled input for a neural network.
+
+    events:
+        uproot table of event data
+    chop:
+        int, remove the first ``chop'' jets from each events,
+        default None --> no jets chopped
+    save_csv:
+        string, save scaling parameters to [save_csv].csv,
+        default None --> no csv saved
+    """
     # scale data to be keras-friendly
     scaler_pt = StandardScaler()
     scaler_eta = StandardScaler()
