@@ -314,8 +314,8 @@ def table_plot(true4_found4_corr, true4_found4_incorr, true4_found3,
         int, # of events where a 4th jets shouldn't have been picked but was
     true3_found3:
         int, # of events where no 4th jet was picked, and that was correct
-    save:
-        bool, whether or not to save the plot as table.png in current dir
+    savename:
+        str or None, if str, save plot as table_[savename].png in current dir
     """
     
     # Prepare plot on which to place table
