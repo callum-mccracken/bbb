@@ -8,11 +8,11 @@ from sklearn.model_selection import ShuffleSplit
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from keras.preprocessing.sequence import pad_sequences
+from keras.preprocessing.sequence import pad_sequences 
 from sklearn.preprocessing import StandardScaler
 
 
-def open_file(filepath, sort_by=None):
+def open_file(filepath, sort_by=None, pt_cut=None, eta_cut=None):
     """
         open_file returns an awkward table, sorted by the parameter sort_by
 
@@ -53,21 +53,43 @@ def open_file(filepath, sort_by=None):
     # convert to "pandas-dataframe-style" table
     table = awkward.Table(branches)
 
+    # get important data
+    pt = table['resolvedJets_pt']
+    eta = table['resolvedJets_eta']
+    phi = table['resolvedJets_phi']
+    E = table['resolvedJets_E']
+    truth = (table['resolvedJets_HadronConeExclTruthLabelID'] == 5).astype(np.int32)
+    tag = table['resolvedJets_is_DL1r_FixedCutBEff_77']
+    
+    # apply cuts if needed
+    if pt_cut != None:
+        cut = pt > pt_cut
+        pt = pt[cut]
+        eta = eta[cut]
+        phi = phi[cut]
+        E = E[cut]
+        truth = truth[cut]
+        tag = tag[cut]
+    if eta_cut != None:
+        cut = abs(eta) < eta_cut
+        pt = pt[cut]
+        eta = eta[cut]
+        phi = phi[cut]
+        E = E[cut]
+        truth = truth[cut]
+        tag = tag[cut]
+    
     # use pt, eta, phi, E to make LorentzVectors for each jet
-    lv = urm.TLorentzVectorArray.from_ptetaphie(table['resolvedJets_pt'],
-                                                table['resolvedJets_eta'],
-                                                table['resolvedJets_phi'],
-                                                table['resolvedJets_E'])
+    lv = urm.TLorentzVectorArray.from_ptetaphie(pt, eta, phi, E)
     # add LVs to table
     table['resolved_lv'] = lv
 
     # add a "truth" category to the table,
     # based on whether or not a jet is a b-jet or not
-    table['truth'] = (table['resolvedJets_HadronConeExclTruthLabelID'] == 5)
-    table['truth'] = table['truth'].astype(np.int32)
-
+    table['truth'] = truth
+    
     # and for convenience rename resolvedJets_is_DL1r_FixedCutBEff_77 to "tag"
-    table['tag'] = table['resolvedJets_is_DL1r_FixedCutBEff_77']
+    table['tag'] = tag
 
     # sort table if needed
     if sort_by is not None:
@@ -95,11 +117,11 @@ def open_file(filepath, sort_by=None):
     # a few easier names to use later
 
     # number of jets overall
-    s_table['njets'] = awkward.AwkwardArray.count(s_table.resolved_lv.pt)
+    s_table['njets'] = awkward.AwkwardArray.count(pt)
     # number of b jets in each event
-    s_table['nbjets'] = awkward.AwkwardArray.count_nonzero(s_table['truth'])
+    s_table['nbjets'] = awkward.AwkwardArray.count_nonzero(truth)
     # number of b tags in each event
-    s_table['nbtags'] = awkward.AwkwardArray.count_nonzero(s_table['tag'])
+    s_table['nbtags'] = awkward.AwkwardArray.count_nonzero(tag)
  
     return s_table
 
@@ -197,6 +219,7 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
         n_untagged = np.count_nonzero(untagged)
         
         if np.count_nonzero(tag) > 3:
+            print('too many tags ye goon')
             print(tag)
         
         if False: #i <10:
