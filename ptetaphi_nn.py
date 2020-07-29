@@ -150,7 +150,7 @@ class PtEtaPhiNN:
             plt.legend(['train', 'val'], loc='upper left')
             plt.show()
 
-    def evaluate(self, events=None, output="pretty", savename=None, save_csv=None):
+    def evaluate(self, events=None, weights=None, output="pretty", savename=None, save_csv=None):
         """
         Given some (scaled) input data,
         get model's predictions of what the result should be,
@@ -204,5 +204,5 @@ class PtEtaPhiNN:
         selections = selections[:,:-1]
 
         # and actually evaluate
-        tools.evaluate_model(truth, tag, selections, output=output, savename=savename)
+        tools.evaluate_model(truth, tag, selections, weights=weights, output=output, savename=savename)
         return selections

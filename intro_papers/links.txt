@@ -1,5 +1,8 @@
 I haven't saved pdfs to the github for file size reasons
 
+Todd's initial attempt with other variables:
+https://indico.cern.ch/event/838715/contributions/3519115/attachments/1888823/3114453/3bStudiesUpdateJuly31_v2.pdf
+
 TASI Lectures on Collider Physics
 https://arxiv.org/pdf/1709.04533.pdf
 

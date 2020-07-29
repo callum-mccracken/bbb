@@ -134,7 +134,7 @@ def splitTVT(input_item, trainfrac = 0.8, testfrac = 0.2):
     return train_index, val_index, test_index
 
 
-def evaluate_model(truths, tags, selections, output="pretty", savename=None):
+def evaluate_model(truths, tags, selections, weights=None, output="pretty", savename=None):
     """
     Given a list of events and a list of selections, how often did we...
 
@@ -161,6 +161,14 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
         tags = [[1, 1, 1, 0, 0]]
         selections = [[0, 0, 0, 1, 0]]
     """
+    assert len(truths) == len(tags) == len(selections)
+
+    if weights is None:
+        weights = np.ones(len(selections))
+    else:
+        print('using weights')
+        assert len(truths) == len(weights)
+
     n_correct = 0
     for i in range(len(truths)):
         if all(truths[i][3:] == selections[i][3:]):
@@ -210,19 +218,19 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
         
         if n_untagged == 0:  # should not have made any selection
             if n_selections != 0:  # made a selection, should not have
-                wrong_pick_3 += 1
+                wrong_pick_3 += weights[i]
             else:  # good call, no selection
-                right_ignore += 1
+                right_ignore += weights[i]
         elif n_untagged == 1:  # if we should have made 1 selection
             if n_selections == 0:  # no selection, bad
-                wrong_ignore += 1
+                wrong_ignore += weights[i]
             elif n_selections == 1:  # 1 selection, good
                 # was it the right jet though?
                 right_selection = bool(truth[selection_index] == 1)
                 if right_selection:
-                    right_pick += 1
+                    right_pick += weights[i]
                 else:
-                    wrong_pick_4 += 1
+                    wrong_pick_4 += weights[i]
             else:
                 raise ValueError("Why did you select more than 1 jet?")
         else:  # there were 2 or more untagged jets
@@ -230,7 +238,9 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
     #print('\r')  # remove progress bar
 
     # ignore "give up" events in the stats at the end
-    n = n_events - give_up
+    n = np.sum(weights)
+    if np.all(weights == 1):
+        n = n - give_up
     if n == 0:
         raise ValueError("something is causing the model evaluator to give up all the time!")
 
@@ -249,10 +259,11 @@ def evaluate_model(truths, tags, selections, output="pretty", savename=None):
 
     five_percent_sum = sum([right_pick_pc, wrong_pick_3_pc, wrong_pick_4_pc,
                             right_ignore_pc, wrong_ignore_pc])
-    if abs(five_percent_sum - 100) > 1e-6:
-        print(five_percent_sum)
-        raise ValueError("percentages should add up to 100!")
-    
+    if np.all(weights == 1):
+        if abs(five_percent_sum - 100) > 1e-6:
+            print(five_percent_sum)
+            raise ValueError("percentages should add up to 100!")
+
     # now normalize columns
     left_col_factor = (right_pick_pc + wrong_pick_4_pc + wrong_ignore_pc) / 100
     right_col_factor = (wrong_pick_3_pc + right_ignore_pc) / 100
@@ -360,19 +371,19 @@ def table_plot(true4_found4_corr, true4_found4_incorr, true4_found3,
     ax.add_patch(patches.Rectangle((0,0),1,2,linewidth=1,edgecolor='#262626',facecolor='w'))
 
     ax.text(1.5,1+1/3, "4th jet\nfound", fontsize=13, verticalalignment='center', horizontalalignment='center', fontweight='heavy')
-    ax.text(1.5,1, f"({n_row_1})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(1.5,1, f"({n_row_1:.0f})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
     ax.add_patch(patches.Rectangle((1,0),1,1-1/3,linewidth=1,edgecolor='#262626',facecolor='w'))
 
     ax.text(3-0.05,1/3, f"{true4_found3_pc:.1f}%", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
-    ax.text(3-0.05,1/9, f"({true4_found3})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(3-0.05,1/9, f"({true4_found3:.0f})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
     ax.add_patch(patches.Rectangle((2,0),2-0.1,1-1/3,linewidth=1,edgecolor='#262626',facecolor='#ffff66'))
 
     ax.text(4.45,1/3, f"{true3_found3_pc:.1f}%", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
-    ax.text(4.45,1/9, f"({true3_found3})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(4.45,1/9, f"({true3_found3:.0f})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
     ax.add_patch(patches.Rectangle((4-0.1,0),1+0.1,1-1/3,linewidth=1,edgecolor='#262626',facecolor='#00ff66'))
 
     ax.text(1.5,0.4, "No 4th jet\nfound", fontsize=13, verticalalignment='center', horizontalalignment='center', fontweight='heavy')
-    ax.text(1.5,1/9, f"({n_row_2})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(1.5,1/9, f"({n_row_2:.0f})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
     ax.add_patch(patches.Rectangle((1,1-1/3),1,1+1/3,linewidth=1,edgecolor='#262626',facecolor='w'))
 
     ax.text(2.5,1+2/3, "Correct\n4th jet", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
@@ -382,28 +393,28 @@ def table_plot(true4_found4_corr, true4_found4_incorr, true4_found3,
     ax.add_patch(patches.Rectangle((2,1-1/3+0.5*(1+1/3)),1,0.5*(1+1/3),linewidth=1,edgecolor='#262626',facecolor='w'))
 
     ax.text(3.45,1+2/3, f"{true4_found4_corr_pc:.1f}%", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
-    ax.text(3.45,1+2/3-2/9, f"({true4_found4_corr})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(3.45,1+2/3-2/9, f"({true4_found4_corr:.0f})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
     ax.add_patch(patches.Rectangle((3,1-1/3),1-0.1,0.5*(1+1/3),linewidth=1,edgecolor='k',facecolor='#ff6666'))
 
     ax.text(3.45,1, f"{true4_found4_incorr_pc:.1f}%", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
-    ax.text(3.45,1-2/9, f"({true4_found4_incorr})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(3.45,1-2/9, f"({true4_found4_incorr:.0f})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
     ax.add_patch(patches.Rectangle((3,1-1/3+0.5*(1+1/3)),1-0.1,0.5*(1+1/3),linewidth=1,edgecolor='#262626',facecolor='#00ff66'))
 
     ax.text(4.45,1+1/3, f"{true3_found4_pc:.1f}%", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
-    ax.text(4.45,1+1/3-2/9, f"({true3_found4})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(4.45,1+1/3-2/9, f"({true3_found4:.0f})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
     ax.add_patch(patches.Rectangle((4-0.1,1-1/3),1+0.1,1+1/3,linewidth=1,edgecolor='#262626',facecolor='#ff6666'))
 
     ax.text(3,2.375, "4th tag exists", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='heavy')
-    ax.text(3,2.375-2/9, f"({n_col_1})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(3,2.375-2/9, f"({n_col_1:.0f})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
     ax.add_patch(patches.Rectangle((2,2),2-0.1,0.75,linewidth=1,edgecolor='#262626',facecolor='w'))
 
     ax.text(4.45,2.375, "No 4th tag", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='heavy')
-    ax.text(4.45,2.375-2/9, f"({n_col_2})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(4.45,2.375-2/9, f"({n_col_2:.0f})", fontsize=10, verticalalignment='center', horizontalalignment='center', fontweight='normal')
     ax.add_patch(patches.Rectangle((4-0.1,2),1+0.1,0.75,linewidth=1,edgecolor='#262626',facecolor='w'))
 
     ax.text(3.5,3.1, "Truth-Matching", fontsize=18, verticalalignment='center', horizontalalignment='center', fontweight='heavy')
 
-    ax.text(1,2.375, f"(# events={n_events})", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
+    ax.text(1,2.375, f"(# events={n_events:.0f})", fontsize=14, verticalalignment='center', horizontalalignment='center', fontweight='normal')
     ax.add_patch(patches.Rectangle((2,2+0.75),3,0.75,linewidth=1,edgecolor='#262626',facecolor='w'))
 
     # format and show/save
