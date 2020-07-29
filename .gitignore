@@ -21,6 +21,9 @@
 # a personal to-do list
 progress.txt
 
+# presentation files
+**presentation/**
+
 # python file for testing purposes
 test.py
 
