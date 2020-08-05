@@ -60,25 +60,43 @@ def open_file(filepath, sort_by=None, pt_cut=None, eta_cut=None):
     E = table['resolvedJets_E']
     truth = (table['resolvedJets_HadronConeExclTruthLabelID'] == 5).astype(np.int32)
     tag = table['resolvedJets_is_DL1r_FixedCutBEff_77']
+<<<<<<< HEAD
 
+=======
+    
+    print(len(pt), 'total events found')
+    
+>>>>>>> ac4d88224629f8da3a3a996640d800c93f5924a8
     # apply cuts if needed
     if pt_cut != None:
-        cut = pt > pt_cut
+        if pt_cut < 0:
+            cut = pt <= abs(pt_cut)
+        else:
+            cut = pt > pt_cut
         pt = pt[cut]
         eta = eta[cut]
         phi = phi[cut]
         E = E[cut]
         truth = truth[cut]
         tag = tag[cut]
+        print(len(pt), 'events left after pt cut')
     if eta_cut != None:
-        cut = abs(eta) < eta_cut
+        if eta_cut < 0:
+            cut = abs(eta) >= abs(eta_cut)
+        else:
+            cut = abs(eta) < eta_cut
         pt = pt[cut]
         eta = eta[cut]
         phi = phi[cut]
         E = E[cut]
         truth = truth[cut]
         tag = tag[cut]
+<<<<<<< HEAD
 
+=======
+        print(len(pt), 'events left after eta cut')
+    
+>>>>>>> ac4d88224629f8da3a3a996640d800c93f5924a8
     # use pt, eta, phi, E to make LorentzVectors for each jet
     lv = urm.TLorentzVectorArray.from_ptetaphie(pt, eta, phi, E)
     # add LVs to table

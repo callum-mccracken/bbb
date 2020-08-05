@@ -19,7 +19,7 @@ import json
 import tools
 
 class PtEtaPhiNN:
-    def __init__(self, events, print_summary=False, model=None, load=None, njets=10, save_csv=None, chop=0, dropout=0.1):
+    def __init__(self, events, print_summary=False, model=None, load=None, njets=10, save_csv=None, chop=0, dropout=0.1, fold=None):
         """
         A class for neural networks that take raw pt, eta, phi values
         Note we assuume events is rectangular (all same # of jets)
@@ -71,8 +71,18 @@ class PtEtaPhiNN:
 
         self.s_in = tools.scale_nn_input(events, chop=chop, save_csv=save_csv)
         
+        self.fold = fold
+
         # split into subsets
-        train, val, test = tools.splitTVT(events, trainfrac=0.7, testfrac=0.2)
+        if fold != None:
+            train, val, test = tools.splitTVT(events, trainfrac=0.7, testfrac=0.2)
+        else:
+            # start at index fold and take every 5th element
+            val_events = np.ones(len(events))[fold::5]
+            val = events[val_events]
+            train = events[np.logical_not(val_events)]
+            test = None
+
         self.train = train
         self.val = val
         self.test = test
@@ -175,9 +185,14 @@ class PtEtaPhiNN:
         """
         if events is None:
             #print("using data given when this model was created")
-            truth = self.events.truth[self.test]
-            tag = self.events.tag[self.test]
-            data = self.s_in[self.test]
+            if self.test is not None:
+                truth = self.events.truth[self.test]
+                tag = self.events.tag[self.test]
+                data = self.s_in[self.test]
+            else:
+                truth = self.events.truth[self.val]
+                tag = self.events.tag[self.val]
+                data = self.s_in[self.val]
         else:
             #print("using different data than when this model was created")
             truth = events.truth
