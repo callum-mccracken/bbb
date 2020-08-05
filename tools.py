@@ -33,7 +33,7 @@ def open_file(filepath, sort_by=None, pt_cut=None, eta_cut=None):
     branches = sm_tree.arrays(branches=[
         'resolvedJets_pt', 'resolvedJets_eta', 'resolvedJets_phi',
         'resolvedJets_E', 'resolvedJets_HadronConeExclTruthLabelID',
-        'resolvedJets_is_DL1r_FixedCutBEff_77'], namedecode='utf-8')
+        'resolvedJets_is_DL1r_FixedCutBEff_77', 'mcEventWeight'], namedecode='utf-8')
     # Meanings of the branches we took
     """
         resolvedJets_pt:
@@ -60,7 +60,7 @@ def open_file(filepath, sort_by=None, pt_cut=None, eta_cut=None):
     E = table['resolvedJets_E']
     truth = (table['resolvedJets_HadronConeExclTruthLabelID'] == 5).astype(np.int32)
     tag = table['resolvedJets_is_DL1r_FixedCutBEff_77']
-    
+
     # apply cuts if needed
     if pt_cut != None:
         cut = pt > pt_cut
@@ -78,7 +78,7 @@ def open_file(filepath, sort_by=None, pt_cut=None, eta_cut=None):
         E = E[cut]
         truth = truth[cut]
         tag = tag[cut]
-    
+
     # use pt, eta, phi, E to make LorentzVectors for each jet
     lv = urm.TLorentzVectorArray.from_ptetaphie(pt, eta, phi, E)
     # add LVs to table
@@ -110,6 +110,7 @@ def open_file(filepath, sort_by=None, pt_cut=None, eta_cut=None):
         s_table = awkward.Table()
         for label in ['resolved_lv', 'truth', 'tag']:
             s_table[label] = table[label][indices]
+        s_table['mcEventWeight'] = table['mcEventWeight']
     else:
         print("not sorting data")
         s_table = table
