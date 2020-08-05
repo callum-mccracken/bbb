@@ -74,7 +74,7 @@ class PtEtaPhiNN:
         self.fold = fold
 
         # split into subsets
-        if fold != None:
+        if fold is None:
             train, val, test = tools.splitTVT(events, trainfrac=0.7, testfrac=0.2)
         else:
             # start at index fold and take every 5th element
