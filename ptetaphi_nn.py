@@ -16,6 +16,7 @@ from sklearn.metrics import roc_curve
 from keras.models import load_model
 from keras.models import model_from_json
 import json
+import random
 import tools
 
 class PtEtaPhiNN:
@@ -75,13 +76,24 @@ class PtEtaPhiNN:
 
         # split into subsets
         if fold is None:
+            # these are lists of indices
             train, val, test = tools.splitTVT(events, trainfrac=0.7, testfrac=0.2)
         else:
-            # start at index fold and take every 5th element
-            val_events = np.ones(len(events))[fold::5]
-            val = events[val_events]
-            train = events[np.logical_not(val_events)]
+            train = []
+            val = []
             test = None
+            # start at index fold and take every 5th element for val
+            print('k-folding: every 5th element starting at', fold)
+            
+            shuffled_indices = list(range(len(events)))
+            random.shuffle(shuffled_indices)
+            events = events[shuffled_indices]
+
+            for i in range(len(events)):
+                if i % 5 == fold:
+                    val.append(i)
+                else:
+                    train.append(i)
 
         self.train = train
         self.val = val
